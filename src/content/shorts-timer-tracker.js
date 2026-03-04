@@ -3,10 +3,18 @@ const CAPTURE_MESSAGE = "CAPTURE_LINK";
 const THROTTLE_MS = 2500;
 const FALLBACK_INTERVAL_MS = 3000;
 const NAVIGATION_POLL_MS = 1200;
+const COUNT_RETRY_INTERVAL_MS = 500;
+const COUNT_COLLECTION_TIMEOUT_MS = 5000;
+const SCROLL_RETRY_DELAY_MS = 400;
 
 let lastEmittedUrl = "";
 let lastEmittedAt = 0;
 let lastObservedHref = "";
+
+let activeUrl = "";
+let captureStartAt = 0;
+let countRetryTimerId = null;
+let hasAdvancedCurrent = false;
 
 function isTikTokHost() {
   const host = window.location.hostname;
@@ -32,14 +40,17 @@ function extractTikTokVideoFromUrl(url) {
     return null;
   }
 
-  const match = parsed.pathname.match(/^\/(?:@([^/]+)\/)?(?:video|shorts)\/([A-Za-z0-9._-]{8,})(?:[/?#].*)?$/);
-  if (!match) {
+  const pathMatch = parsed.pathname.match(/^\/(?:@([^/]+)\/)?(?:video|shorts)\/([A-Za-z0-9._-]{8,})(?:[/?#].*)?$/);
+  if (!pathMatch) {
     return null;
   }
 
+  const user = pathMatch[1] ? `@${pathMatch[1]}` : null;
+  const videoId = pathMatch[2];
+
   return {
     source: "tiktok",
-    url,
+    url: user ? `https://www.tiktok.com/${user}/video/${videoId}` : `https://www.tiktok.com/video/${videoId}`,
   };
 }
 
@@ -66,7 +77,13 @@ function normalizeCount(raw) {
     return null;
   }
 
-  const match = input.match(/(\d+(?:[\.,]\d+)?)([kmKbB만]?)/);
+  const koreman = input.match(/^([0-9]+(?:[.,][0-9]+)?)\s*만$/);
+  if (koreman) {
+    const num = parseFloat(koreman[1].replace(/,/g, ""));
+    return Number.isFinite(num) ? Math.round(num * 10_000) : null;
+  }
+
+  const match = input.match(/([0-9]+(?:[.,][0-9]+)?)([kKmMbB]?)/);
   if (!match) {
     return null;
   }
@@ -80,46 +97,22 @@ function normalizeCount(raw) {
   if (suffix === "k") {
     return Math.round(numberPart * 1000);
   }
-
   if (suffix === "m") {
     return Math.round(numberPart * 1_000_000);
   }
-
   if (suffix === "b") {
     return Math.round(numberPart * 1_000_000_000);
-  }
-
-  if (input.includes("만")) {
-    return Math.round(numberPart * 10_000);
   }
 
   return Math.round(numberPart);
 }
 
 function collectCountsFromSelectors(keySelectors) {
-  const findInElements = (selector, keyword) => {
+  const collectFromElements = (selector, keyword) => {
     const elements = document.querySelectorAll(selector);
     for (const el of elements) {
       const text = readTextFromElement(el);
-      const matched = text.match(/(\d[\d.,]*\s*[kKmMbB]?|[\d]+\s*만)/);
-      if (!matched) {
-        continue;
-      }
-
-      const parsed = normalizeCount(matched[0]);
-      if (parsed !== null) {
-        return parsed;
-      }
-    }
-
-    const buttonLike = [...elements].find((el) => {
-      const text = readTextFromElement(el.closest("button") || el);
-      return keyword.test((text || "").toLowerCase());
-    });
-
-    if (buttonLike) {
-      const text = readTextFromElement(buttonLike);
-      const matched = text.match(/(\d[\d.,]*\s*[kKmMbB]?|[\d]+\s*만)/);
+      const matched = text.match(/([0-9][0-9.,]*\s*[kKmMbB]?|[0-9]+\s*만)/);
       if (matched) {
         const parsed = normalizeCount(matched[0]);
         if (parsed !== null) {
@@ -127,10 +120,27 @@ function collectCountsFromSelectors(keySelectors) {
         }
       }
     }
+
+    const buttonLike = [...elements].find((el) => {
+      const text = readTextFromElement(el.closest("button") || el);
+      return keyword.test((text || "").toLowerCase());
+    });
+    if (buttonLike) {
+      const text = readTextFromElement(buttonLike);
+      const matched = text.match(/([0-9][0-9.,]*\s*[kKmMbB]?|[0-9]+\s*만)/);
+      if (matched) {
+        const parsed = normalizeCount(matched[0]);
+        if (parsed !== null) {
+          return parsed;
+        }
+      }
+    }
+
+    return null;
   };
 
   for (const selectorGroup of keySelectors) {
-    const value = findInElements(selectorGroup.selector, selectorGroup.keyword);
+    const value = collectFromElements(selectorGroup.selector, selectorGroup.keyword);
     if (value !== null) {
       return value;
     }
@@ -143,7 +153,7 @@ function collectCountsFromJsonScripts() {
   const result = {};
   const keys = ["like", "comment", "bookmark", "share"];
 
-  const scripts = [...document.querySelectorAll("script")];
+  const scripts = [...document.querySelectorAll("script[type='application/ld+json'], script")];
   for (const script of scripts) {
     const text = script.textContent || "";
     const lowered = text.toLowerCase();
@@ -157,7 +167,10 @@ function collectCountsFromJsonScripts() {
         continue;
       }
 
-      const pattern = new RegExp(`"${key}Count"\\s*:\\s*"?(\\d[\\d.,]*(?:[kKmM]?)|\\d+\\s*만|0)"?`, "i");
+      const pattern = new RegExp(
+        `"${key}Count"\\s*:\\s*"?([0-9][0-9.,]*[kKmM]?|[0-9]+\\s*만|0)"?`,
+        "i",
+      );
       const match = lowered.includes(`${key}count`) ? text.match(pattern) : null;
       if (!match) {
         continue;
@@ -178,35 +191,37 @@ function collectCountsFromJsonScripts() {
 }
 
 function collectCounts() {
-  const result = {};
-
-  const selectorMap = {
-    likeCount: [
-      { selector: '[data-e2e*="like"]', keyword: /\blike\b/ },
-      { selector: "[aria-label]", keyword: /like|좋아요/ },
-      { selector: '[aria-label*="좋아요"]', keyword: /좋아요/ },
-    ],
-    commentCount: [
-      { selector: '[data-e2e*="comment"]', keyword: /comment/ },
-      { selector: "[aria-label]", keyword: /comment|댓글/ },
-      { selector: '[aria-label*="댓글"]', keyword: /댓글/ },
-    ],
-    bookmarkCount: [
-      { selector: '[data-e2e*="bookmark"]', keyword: /bookmark/ },
-      { selector: '[data-e2e*="collect"]', keyword: /collect/ },
-      { selector: '[aria-label*="북마크"]', keyword: /북마크/ },
-    ],
-    shareCount: [
-      { selector: '[data-e2e*="share"]', keyword: /share/ },
-      { selector: "[aria-label]", keyword: /share|공유/ },
-      { selector: '[aria-label*="공유"]', keyword: /공유/ },
-    ],
+  const result = {
+    likeCount: null,
+    commentCount: null,
+    bookmarkCount: null,
+    shareCount: null,
   };
 
-  result.likeCount = collectCountsFromSelectors(selectorMap.likeCount);
-  result.commentCount = collectCountsFromSelectors(selectorMap.commentCount);
-  result.bookmarkCount = collectCountsFromSelectors(selectorMap.bookmarkCount);
-  result.shareCount = collectCountsFromSelectors(selectorMap.shareCount);
+  result.likeCount = collectCountsFromSelectors([
+    { selector: '[data-e2e*="like"]', keyword: /\blike\b/ },
+    { selector: "[aria-label]", keyword: /like|좋아요/ },
+    { selector: '[data-e2e*="like"]', keyword: /좋아요/ },
+    { selector: '[aria-label*="좋아요"]', keyword: /좋아요/ },
+  ]);
+
+  result.commentCount = collectCountsFromSelectors([
+    { selector: '[data-e2e*="comment"]', keyword: /comment/ },
+    { selector: "[aria-label]", keyword: /comment|댓글/ },
+    { selector: '[aria-label*="댓글"]', keyword: /댓글/ },
+  ]);
+
+  result.bookmarkCount = collectCountsFromSelectors([
+    { selector: '[data-e2e*="bookmark"]', keyword: /bookmark|저장/ },
+    { selector: '[data-e2e*="collect"]', keyword: /collect|즐겨찾/ },
+    { selector: '[aria-label*="즐겨찾"]', keyword: /즐겨찾|bookmark|저장/ },
+  ]);
+
+  result.shareCount = collectCountsFromSelectors([
+    { selector: '[data-e2e*="share"]', keyword: /share/ },
+    { selector: "[aria-label]", keyword: /share|공유/ },
+    { selector: '[aria-label*="공유"]', keyword: /공유/ },
+  ]);
 
   const jsonCounts = collectCountsFromJsonScripts();
   for (const [key, value] of Object.entries(jsonCounts)) {
@@ -232,6 +247,40 @@ function readCurrentCandidate() {
     ...video,
     ...collectCounts(),
   };
+}
+
+function isAdVideoCurrent() {
+  const paragraphs = document.querySelectorAll("p");
+  for (const p of paragraphs) {
+    if ((p.textContent || "").trim() === "광고") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isCompleteCounts(candidate) {
+  return (
+    typeof candidate.likeCount === "number" &&
+    typeof candidate.commentCount === "number" &&
+    typeof candidate.bookmarkCount === "number" &&
+    typeof candidate.shareCount === "number"
+  );
+}
+
+function clearRetryTimer() {
+  if (countRetryTimerId) {
+    window.clearTimeout(countRetryTimerId);
+    countRetryTimerId = null;
+  }
+}
+
+function resetCaptureState() {
+  activeUrl = "";
+  captureStartAt = 0;
+  hasAdvancedCurrent = false;
+  clearRetryTimer();
 }
 
 function shouldIgnoreCandidate(url) {
@@ -268,13 +317,86 @@ function emitCandidate(candidate) {
   });
 }
 
-function captureCurrentVideo() {
-  const candidate = readCurrentCandidate();
-  if (!candidate || document.hidden) {
+function scheduleAutoScroll(reason) {
+  const scrollOptions = {
+    top: window.innerHeight * 0.98,
+    left: 0,
+    behavior: "smooth",
+  };
+
+  window.setTimeout(() => {
+    if (document.hidden) {
+      return;
+    }
+
+    window.scrollBy(scrollOptions);
+  }, reason === "ad" ? 150 : 0);
+
+  window.setTimeout(() => {
+    if (document.hidden) {
+      return;
+    }
+
+    window.scrollBy(scrollOptions);
+  }, SCROLL_RETRY_DELAY_MS);
+}
+
+function attemptCaptureAndAdvance() {
+  if (document.hidden) {
     return;
   }
 
-  emitCandidate(candidate);
+  const candidate = readCurrentCandidate();
+  if (!candidate) {
+    resetCaptureState();
+    return;
+  }
+
+  const currentUrl = candidate.url;
+  if (currentUrl !== activeUrl) {
+    resetCaptureState();
+    activeUrl = currentUrl;
+    captureStartAt = Date.now();
+  }
+
+  if (hasAdvancedCurrent) {
+    return;
+  }
+
+  if (isAdVideoCurrent()) {
+    hasAdvancedCurrent = true;
+    clearRetryTimer();
+    window.setTimeout(() => {
+      scheduleAutoScroll("ad");
+    }, 120);
+    return;
+  }
+
+  if (isCompleteCounts(candidate)) {
+    clearRetryTimer();
+    emitCandidate(candidate);
+    hasAdvancedCurrent = true;
+    scheduleAutoScroll("captured");
+    return;
+  }
+
+  const elapsed = Date.now() - captureStartAt;
+  if (elapsed >= COUNT_COLLECTION_TIMEOUT_MS) {
+    hasAdvancedCurrent = true;
+    clearRetryTimer();
+    console.log("[TikTok Short Link Scraper] count collection timeout without completion", {
+      url: currentUrl,
+      elapsed,
+    });
+    scheduleAutoScroll("timeout");
+    return;
+  }
+
+  clearRetryTimer();
+  countRetryTimerId = window.setTimeout(() => {
+    countRetryTimerId = null;
+    attemptCaptureAndAdvance();
+  }, COUNT_RETRY_INTERVAL_MS);
 }
 
 function wrapHistoryMethod(methodName) {
@@ -285,7 +407,7 @@ function wrapHistoryMethod(methodName) {
 
   history[methodName] = function (...args) {
     const ret = original.apply(this, args);
-    window.setTimeout(captureCurrentVideo, 80);
+    window.setTimeout(attemptCaptureAndAdvance, 80);
     return ret;
   };
 }
@@ -297,32 +419,28 @@ function onPotentialNavigation() {
   }
 
   lastObservedHref = href;
-  captureCurrentVideo();
+  window.setTimeout(attemptCaptureAndAdvance, 120);
 }
 
 wrapHistoryMethod("pushState");
 wrapHistoryMethod("replaceState");
-
 window.addEventListener("popstate", () => {
-  window.setTimeout(captureCurrentVideo, 80);
+  window.setTimeout(attemptCaptureAndAdvance, 80);
 });
-
 window.addEventListener("hashchange", () => {
-  window.setTimeout(captureCurrentVideo, 80);
+  window.setTimeout(attemptCaptureAndAdvance, 80);
 });
-
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
-    captureCurrentVideo();
+    attemptCaptureAndAdvance();
   }
 });
-
-window.addEventListener("focus", captureCurrentVideo);
-window.addEventListener("pageshow", captureCurrentVideo);
+window.addEventListener("focus", attemptCaptureAndAdvance);
+window.addEventListener("pageshow", attemptCaptureAndAdvance);
 
 window.setInterval(() => {
   if (!document.hidden) {
-    captureCurrentVideo();
+    attemptCaptureAndAdvance();
   }
 }, FALLBACK_INTERVAL_MS);
 
@@ -330,5 +448,5 @@ window.setInterval(onPotentialNavigation, NAVIGATION_POLL_MS);
 
 window.setTimeout(() => {
   lastObservedHref = window.location.href;
-  captureCurrentVideo();
+  attemptCaptureAndAdvance();
 }, 500);
