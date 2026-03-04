@@ -1,12 +1,12 @@
 :root {
-  --bg: #f5f1ea;
-  --panel: #fffaf2;
-  --text: #1b1e23;
-  --subtle: #5f6670;
-  --accent: #ff6b57;
-  --accent-dark: #e65240;
-  --accent-soft: #ffe8e2;
-  --border: #e7dccf;
+  --bg: #f6f8fc;
+  --panel: #ffffff;
+  --text: #111827;
+  --subtle: #4b5563;
+  --accent: #ff3b81;
+  --accent-dark: #d8346a;
+  --accent-soft: #ffe8f1;
+  --border: #e5e7eb;
 }
 
 * {
@@ -16,8 +16,8 @@
 html,
 body {
   margin: 0;
-  width: 320px;
-  background: linear-gradient(160deg, #fffaf2 0%, #f2ecff 40%, #e8f7ff 100%);
+  width: 340px;
+  background: linear-gradient(160deg, #f6f8fc 0%, #f3ecff 40%, #fdf1ff 100%);
   color: var(--text);
   font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
 }
@@ -54,9 +54,40 @@ body {
   font-weight: 700;
 }
 
+.path-section {
+  margin-top: 10px;
+}
+
+.path-section label {
+  display: block;
+  font-size: 12px;
+  color: var(--subtle);
+  margin-bottom: 6px;
+}
+
+.path-controls {
+  display: flex;
+  gap: 8px;
+}
+
+#csv-path {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.path-message {
+  margin: 4px 0 0;
+  min-height: 14px;
+  font-size: 11px;
+  color: var(--subtle);
+}
+
 .actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   margin: 12px 0;
 }
@@ -64,12 +95,13 @@ body {
 button {
   appearance: none;
   border: none;
-  padding: 8px 6px;
   border-radius: 8px;
   background: var(--accent);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  padding: 8px 6px;
+  font-size: 12px;
 }
 
 button:hover {
@@ -77,11 +109,11 @@ button:hover {
 }
 
 button.danger {
-  background: #666;
+  background: #64748b;
 }
 
 button.danger:hover {
-  background: #444;
+  background: #334155;
 }
 
 .meta {
@@ -109,6 +141,7 @@ button.danger:hover {
   color: var(--subtle);
   padding: 20px;
   text-align: center;
+  font-size: 12px;
 }
 
 .item {
@@ -122,27 +155,25 @@ button.danger:hover {
 
 .meta-line {
   margin: 0 0 6px;
-  display: flex;
-  gap: 6px;
-  align-items: center;
+  display: block;
   font-size: 11px;
   color: var(--subtle);
 }
 
-.source-pill {
-  display: inline-block;
-  border-radius: 999px;
-  border: 1px solid var(--accent-dark);
-  color: var(--accent-dark);
-  background: var(--accent-soft);
-  padding: 2px 7px;
-  font-weight: 700;
-  text-transform: uppercase;
+.stats {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #334155;
+}
+
+.stats span {
+  margin-right: 8px;
 }
 
 .url {
   display: block;
   font-size: 12px;
   word-break: break-all;
-  color: #0f4b8a;
+  color: #1d4ed8;
+  text-decoration: none;
 }

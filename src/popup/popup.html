@@ -4,17 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="popup.css" />
-    <title>Shorts Link Scraper</title>
+    <title>TikTok Link Scraper</title>
   </head>
   <body>
     <main class="shell">
       <header class="header">
         <div>
-          <h1>Shorts Link Scraper</h1>
-          <p>쇼츠 자동 전환 시 링크를 수집합니다.</p>
+          <h1>TikTok Short Link Scraper</h1>
+          <p>자동 전환되는 TikTok 비디오 링크를 저장합니다.</p>
         </div>
         <span id="count-badge">0</span>
       </header>
+
+      <section class="path-section">
+        <label for="csv-path">CSV 저장 경로 (다운로드 폴더 기준)</label>
+        <div class="path-controls">
+          <input id="csv-path" type="text" value="tiktok_list.csv" />
+          <button id="save-path-button" type="button">경로 저장</button>
+        </div>
+        <p id="path-message" class="path-message"></p>
+      </section>
 
       <section class="actions">
         <button id="copy-button" type="button">전체 복사</button>
@@ -23,7 +32,7 @@
       </section>
 
       <section class="meta">
-        <p id="status-text">아직 수집된 링크가 없습니다.</p>
+        <p id="status-text">대기 중입니다.</p>
       </section>
 
       <section>

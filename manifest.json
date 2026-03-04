@@ -1,21 +1,20 @@
 {
   "manifest_version": 3,
-  "name": "Shorts Link Scraper",
-  "description": "Captures YouTube Shorts and TikTok Shorts links automatically while autoplay moves videos.",
-  "version": "1.0.0",
-  "permissions": ["storage"],
+  "name": "TikTok Short Link Scraper",
+  "description": "Collects TikTok short/video links and engagement counts while TikTok videos move automatically.",
+  "version": "1.1.0",
+  "permissions": ["storage", "downloads"],
   "host_permissions": [
-    "https://www.youtube.com/*",
-    "https://m.youtube.com/*",
     "https://www.tiktok.com/*",
-    "https://m.tiktok.com/*"
+    "https://m.tiktok.com/*",
+    "https://tiktok.com/*"
   ],
   "background": {
     "service_worker": "src/service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_title": "Shorts Link Scraper",
+    "default_title": "TikTok Short Link Scraper",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -33,9 +32,6 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtube.com/shorts/*",
-        "https://youtube.com/shorts/*",
-        "https://m.youtube.com/shorts/*",
         "https://www.tiktok.com/*",
         "https://m.tiktok.com/*",
         "https://tiktok.com/*"
