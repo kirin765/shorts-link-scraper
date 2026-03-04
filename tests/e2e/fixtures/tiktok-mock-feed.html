@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TikTok Mock Feed</title>
+    <script type="module" src="./tiktok-mock-feed.js"></script>
+    <style>
+      body {
+        margin: 0;
+        min-height: 2400px;
+        font-family: Arial, sans-serif;
+      }
+
+      #app {
+        max-width: 760px;
+        margin: 40px auto;
+        padding: 24px;
+      }
+
+      .title {
+        margin: 0 0 12px 0;
+        font-size: 20px;
+      }
+
+      .frame {
+        background: #111;
+        color: #fff;
+        padding: 24px;
+        border-radius: 12px;
+      }
+
+      .meta {
+        margin-top: 12px;
+        color: #ddd;
+      }
+
+      .stats {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .stats span {
+        display: inline-block;
+        margin-right: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <section class="frame">
+        <h1 class="title">TikTok e2e mock feed</h1>
+        <div id="scene"></div>
+      </section>
+      <p style="margin-top: 20px; font-size: 12px; color: #777">
+        The page intentionally keeps scrollable height so content-script scrolling is observable.
+      </p>
+    </div>
+  </body>
+</html>

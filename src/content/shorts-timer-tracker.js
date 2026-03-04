@@ -18,7 +18,13 @@ let hasAdvancedCurrent = false;
 
 function isTikTokHost() {
   const host = window.location.hostname;
-  return host === "www.tiktok.com" || host === "m.tiktok.com" || host === "tiktok.com";
+  return (
+    host === "www.tiktok.com" ||
+    host === "m.tiktok.com" ||
+    host === "tiktok.com" ||
+    host === "localhost" ||
+    host === "127.0.0.1"
+  );
 }
 
 function parseUrl(url) {
@@ -36,7 +42,13 @@ function extractTikTokVideoFromUrl(url) {
   }
 
   const hostname = parsed.hostname.toLowerCase();
-  if (hostname !== "www.tiktok.com" && hostname !== "m.tiktok.com" && hostname !== "tiktok.com") {
+  if (
+    hostname !== "www.tiktok.com" &&
+    hostname !== "m.tiktok.com" &&
+    hostname !== "tiktok.com" &&
+    hostname !== "localhost" &&
+    hostname !== "127.0.0.1"
+  ) {
     return null;
   }
 
