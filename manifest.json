@@ -34,9 +34,11 @@
     {
       "matches": [
         "https://www.youtube.com/shorts/*",
+        "https://youtube.com/shorts/*",
         "https://m.youtube.com/shorts/*",
         "https://www.tiktok.com/*",
-        "https://m.tiktok.com/*"
+        "https://m.tiktok.com/*",
+        "https://tiktok.com/*"
       ],
       "js": ["src/content/shorts-timer-tracker.js"],
       "run_at": "document_idle"
