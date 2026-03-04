@@ -1,0 +1,148 @@
+:root {
+  --bg: #f5f1ea;
+  --panel: #fffaf2;
+  --text: #1b1e23;
+  --subtle: #5f6670;
+  --accent: #ff6b57;
+  --accent-dark: #e65240;
+  --accent-soft: #ffe8e2;
+  --border: #e7dccf;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 320px;
+  background: linear-gradient(160deg, #fffaf2 0%, #f2ecff 40%, #e8f7ff 100%);
+  color: var(--text);
+  font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+}
+
+.shell {
+  padding: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+#count-badge {
+  border-radius: 999px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-dark);
+  color: var(--accent-dark);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+button {
+  appearance: none;
+  border: none;
+  padding: 8px 6px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button.danger {
+  background: #666;
+}
+
+button.danger:hover {
+  background: #444;
+}
+
+.meta {
+  min-height: 16px;
+}
+
+#status-text {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--subtle);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.empty {
+  color: var(--subtle);
+  padding: 20px;
+  text-align: center;
+}
+
+.item {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.meta-line {
+  margin: 0 0 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--subtle);
+}
+
+.source-pill {
+  display: inline-block;
+  border-radius: 999px;
+  border: 1px solid var(--accent-dark);
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+  padding: 2px 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.url {
+  display: block;
+  font-size: 12px;
+  word-break: break-all;
+  color: #0f4b8a;
+}

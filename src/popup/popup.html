@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Shorts Link Scraper</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div>
+          <h1>Shorts Link Scraper</h1>
+          <p>쇼츠 자동 전환 시 링크를 수집합니다.</p>
+        </div>
+        <span id="count-badge">0</span>
+      </header>
+
+      <section class="actions">
+        <button id="copy-button" type="button">전체 복사</button>
+        <button id="csv-button" type="button">CSV 저장</button>
+        <button id="clear-button" type="button" class="danger">초기화</button>
+      </section>
+
+      <section class="meta">
+        <p id="status-text">아직 수집된 링크가 없습니다.</p>
+      </section>
+
+      <section>
+        <ul id="list" class="list" aria-live="polite"></ul>
+      </section>
+    </main>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>
