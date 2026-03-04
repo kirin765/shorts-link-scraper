@@ -1,22 +1,38 @@
 const CAPTURE_MESSAGE = "CAPTURE_LINK";
 const THROTTLE_MS = 2500;
 const FALLBACK_INTERVAL_MS = 3000;
+const NAVIGATION_POLL_MS = 1200;
+
 let lastEmittedUrl = "";
 let lastEmittedAt = 0;
-
-const host = window.location.hostname;
+let lastObservedHref = "";
 
 function isYouTubeHost() {
-  return host === "www.youtube.com" || host === "m.youtube.com";
+  const host = window.location.hostname;
+  return host === "www.youtube.com" || host === "m.youtube.com" || host === "youtube.com";
 }
 
 function isTikTokHost() {
-  return host === "www.tiktok.com" || host === "m.tiktok.com";
+  const host = window.location.hostname;
+  return host === "www.tiktok.com" || host === "m.tiktok.com" || host === "tiktok.com";
+}
+
+function parseUrl(url) {
+  try {
+    return new URL(url);
+  } catch {
+    return null;
+  }
 }
 
 function extractYouTubeVideoFromUrl(url) {
   const parsed = parseUrl(url);
-  if (!parsed || !/^https?:\/\/(www|m)\.youtube\.com$/i.test(parsed.origin)) {
+  if (!parsed) {
+    return null;
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname !== "www.youtube.com" && hostname !== "m.youtube.com" && hostname !== "youtube.com") {
     return null;
   }
 
@@ -33,7 +49,12 @@ function extractYouTubeVideoFromUrl(url) {
 
 function extractTikTokVideoFromUrl(url) {
   const parsed = parseUrl(url);
-  if (!parsed || !/^https?:\/\/(www|m)\.tiktok\.com$/i.test(parsed.origin)) {
+  if (!parsed) {
+    return null;
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname !== "www.tiktok.com" && hostname !== "m.tiktok.com" && hostname !== "tiktok.com") {
     return null;
   }
 
@@ -50,14 +71,6 @@ function extractTikTokVideoFromUrl(url) {
     source: "tiktok",
     url: user ? `https://www.tiktok.com/${user}/video/${videoId}` : `https://www.tiktok.com/video/${videoId}`,
   };
-}
-
-function parseUrl(url) {
-  try {
-    return new URL(url);
-  } catch {
-    return null;
-  }
 }
 
 function readCurrentCandidate() {
@@ -103,13 +116,11 @@ function emitCandidate(candidate) {
 
 function captureCurrentVideo() {
   const candidate = readCurrentCandidate();
-  if (!candidate) {
+  if (!candidate || document.hidden) {
     return;
   }
 
-  if (!document.hidden) {
-    emitCandidate(candidate);
-  }
+  emitCandidate(candidate);
 }
 
 function wrapHistoryMethod(methodName) {
@@ -125,6 +136,16 @@ function wrapHistoryMethod(methodName) {
   };
 }
 
+function onPotentialNavigation() {
+  const href = window.location.href;
+  if (href === lastObservedHref || document.hidden) {
+    return;
+  }
+
+  lastObservedHref = href;
+  captureCurrentVideo();
+}
+
 wrapHistoryMethod("pushState");
 wrapHistoryMethod("replaceState");
 window.addEventListener("popstate", () => {
@@ -138,6 +159,14 @@ document.addEventListener("visibilitychange", () => {
     captureCurrentVideo();
   }
 });
+window.addEventListener("focus", captureCurrentVideo);
+window.addEventListener("pageshow", captureCurrentVideo);
+
+["yt-navigate-finish", "yt-page-data-updated", "yt-load-start", "yt-update-title"].forEach((eventName) => {
+  window.addEventListener(eventName, () => {
+    window.setTimeout(captureCurrentVideo, 120);
+  });
+});
 
 window.setInterval(() => {
   if (!document.hidden) {
@@ -145,4 +174,9 @@ window.setInterval(() => {
   }
 }, FALLBACK_INTERVAL_MS);
 
-window.setTimeout(captureCurrentVideo, 500);
+window.setInterval(onPotentialNavigation, NAVIGATION_POLL_MS);
+
+window.setTimeout(() => {
+  lastObservedHref = window.location.href;
+  captureCurrentVideo();
+}, 500);
